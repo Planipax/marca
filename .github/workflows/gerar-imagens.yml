@@ -1,0 +1,94 @@
+name: Gerar imagens dos carrosséis
+
+# Quando o Make grava um publicacoes/<pasta>/carrossel.html, esta tarefa
+# fotografa cada slide a 1080x1350 e grava slide01.png, slide02.png, ... e
+# estado.json na mesma pasta. O agente planipax-carrossel espera pelo
+# estado.json, confere as imagens e agenda-as no Metricool.
+
+on:
+  push:
+    branches: [main]
+    paths: ['publicacoes/**/carrossel.html']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gerar-imagens
+  cancel-in-progress: false
+
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar o navegador
+        run: |
+          pip install playwright==1.47.0
+          python -m playwright install --with-deps chromium
+
+      - name: Gerar os PNG
+        run: |
+          cat > /tmp/gerar_pngs.py <<'PY'
+          import asyncio, hashlib, json, pathlib
+          from playwright.async_api import async_playwright
+
+          FALHAS_JS = """() => {
+            const f = [...document.fonts].filter(x => x.status === 'error').map(x => 'fonte: ' + x.family);
+            const i = [...document.images].filter(x => !x.complete || x.naturalWidth === 0).map(x => 'imagem: ' + x.src);
+            return f.concat(i);
+          }"""
+
+          async def main():
+              pastas = []
+              for h in sorted(pathlib.Path('publicacoes').glob('*/carrossel.html')):
+                  d = h.parent
+                  sha = hashlib.sha256(h.read_bytes()).hexdigest()
+                  e = d / 'estado.json'
+                  if e.exists() and json.loads(e.read_text()).get('sha256') == sha:
+                      continue
+                  pastas.append((d, h, sha))
+              if not pastas:
+                  print('Nada para gerar.')
+                  return
+              async with async_playwright() as p:
+                  br = await p.chromium.launch()
+                  for d, h, sha in pastas:
+                      pg = await br.new_page(viewport={'width': 540, 'height': 675}, device_scale_factor=2)
+                      await pg.goto(h.resolve().as_uri(), wait_until='networkidle')
+                      await pg.evaluate('() => document.fonts.ready.then(() => true)')
+                      await pg.wait_for_timeout(500)
+                      falhas = await pg.evaluate(FALHAS_JS)
+                      n = await pg.locator('section[data-slide]').count()
+                      ficheiros = []
+                      for i in range(1, n + 1):
+                          nome = f'slide{i:02d}.png'
+                          await pg.locator(f'section[data-slide="{i}"] .slide').screenshot(path=str(d / nome))
+                          ficheiros.append(nome)
+                      (d / 'estado.json').write_text(json.dumps(
+                          {'sha256': sha, 'slides': n, 'ficheiros': ficheiros, 'falhas': falhas},
+                          ensure_ascii=False, indent=1), encoding='utf-8')
+                      print(d, n, 'slides', 'falhas:', falhas)
+                      await pg.close()
+                  await br.close()
+
+          asyncio.run(main())
+          PY
+          python /tmp/gerar_pngs.py
+
+      - name: Gravar no repositório
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add publicacoes
+          if git diff --cached --quiet; then echo "Sem imagens novas."; exit 0; fi
+          git commit -m "Imagens dos carrosséis geradas"
+          git pull --rebase
+          git push
