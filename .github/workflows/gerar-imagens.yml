@@ -4,6 +4,8 @@ name: Gerar imagens dos carrosséis
 # fotografa cada slide a 1080x1350 e grava slide01.png, slide02.png, ... e
 # estado.json na mesma pasta. O agente planipax-carrossel espera pelo
 # estado.json, confere as imagens e agenda-as no Metricool.
+# A versao do playwright TEM de ser a mesma do ambiente do agente: outra
+# versao do Chromium parte as linhas de texto noutros sitios (visto a 22/10/2026).
 
 on:
   push:
@@ -31,13 +33,14 @@ jobs:
 
       - name: Instalar o navegador
         run: |
-          pip install playwright==1.47.0
+          pip install playwright==1.56.0
           python -m playwright install --with-deps chromium
 
       - name: Gerar os PNG
         run: |
           cat > /tmp/gerar_pngs.py <<'PY'
           import asyncio, hashlib, json, pathlib
+          from importlib.metadata import version
           from playwright.async_api import async_playwright
 
           FALHAS_JS = """() => {
@@ -73,7 +76,8 @@ jobs:
                           await pg.locator(f'section[data-slide="{i}"] .slide').screenshot(path=str(d / nome))
                           ficheiros.append(nome)
                       (d / 'estado.json').write_text(json.dumps(
-                          {'sha256': sha, 'slides': n, 'ficheiros': ficheiros, 'falhas': falhas},
+                          {'sha256': sha, 'slides': n, 'ficheiros': ficheiros, 'falhas': falhas,
+                           'playwright': version('playwright')},
                           ensure_ascii=False, indent=1), encoding='utf-8')
                       print(d, n, 'slides', 'falhas:', falhas)
                       await pg.close()
