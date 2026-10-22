@@ -6,6 +6,8 @@ name: Gerar imagens dos carrosséis
 # estado.json, confere as imagens e agenda-as no Metricool.
 # A versao do playwright TEM de ser a mesma do ambiente do agente: outra
 # versao do Chromium parte as linhas de texto noutros sitios (visto a 22/10/2026).
+# Pela mesma razao o Chromium arranca com --font-render-hinting=none, como o
+# render.py do agente: o Ubuntu do GitHub usa outro valor por defeito.
 
 on:
   push:
@@ -62,7 +64,7 @@ jobs:
                   print('Nada para gerar.')
                   return
               async with async_playwright() as p:
-                  br = await p.chromium.launch()
+                  br = await p.chromium.launch(args=['--font-render-hinting=none'])
                   for d, h, sha in pastas:
                       pg = await br.new_page(viewport={'width': 540, 'height': 675}, device_scale_factor=2)
                       await pg.goto(h.resolve().as_uri(), wait_until='networkidle')
