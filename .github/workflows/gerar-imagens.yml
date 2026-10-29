@@ -42,7 +42,7 @@ jobs:
       - name: Instalar navegador, voz e ffmpeg
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-          pip install playwright==1.56.0 piper-tts==1.8.0 numpy==2.5.3 onnxruntime==1.29.0 onnx==1.23.2
+          pip install playwright==1.56.0 piper-tts==1.8.0 numpy==2.5.3 onnxruntime==1.29.0 onnx==1.23.2 pillow==12.3.0
           python -m playwright install --with-deps chromium
 
       - name: Gerar os PNG dos carrosseis
