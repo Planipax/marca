@@ -1,18 +1,24 @@
-name: Gerar imagens dos carrosséis
+name: Gerar imagens e videos das publicacoes
 
-# Quando o Make grava um publicacoes/<pasta>/carrossel.html, esta tarefa
-# fotografa cada slide a 1080x1350 e grava slide01.png, slide02.png, ... e
-# estado.json na mesma pasta. O agente planipax-carrossel espera pelo
-# estado.json, confere as imagens e agenda-as no Metricool.
-# A versao do playwright TEM de ser a mesma do ambiente do agente: outra
-# versao do Chromium parte as linhas de texto noutros sitios (visto a 22/10/2026).
-# Pela mesma razao o Chromium arranca com --font-render-hinting=none, como o
-# render.py do agente: o Ubuntu do GitHub usa outro valor por defeito.
+# Quando o Make grava publicacoes/<pasta>/carrossel.html, esta tarefa
+# fotografa cada slide a 1080x1350 (slide01.png, ...). Quando grava
+# publicacoes/<pasta>/roteiro.json, gera o Reel com voz e musica (reel.mp4,
+# capa.png, folha.png) com o motor da skill, guardado em
+# .github/planipax-carrossel.zip. Nos dois casos escreve estado.json na pasta.
+# O agente planipax-carrossel espera pelo estado.json, confere tudo contra o
+# que o Ricardo aprovou e agenda no Metricool.
+#
+# As versoes (playwright, piper-tts, numpy, onnxruntime) TEM de ser as do
+# ambiente do agente: outra versao do Chromium parte as linhas noutros sitios
+# (visto a 22/10/2026). O Chromium arranca com --font-render-hinting=none,
+# como no agente: o Ubuntu do GitHub usa outro valor por defeito.
 
 on:
   push:
     branches: [main]
-    paths: ['publicacoes/**/carrossel.html']
+    paths:
+      - 'publicacoes/**/carrossel.html'
+      - 'publicacoes/**/roteiro.json'
   workflow_dispatch:
 
 permissions:
@@ -25,7 +31,7 @@ concurrency:
 jobs:
   gerar:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -33,12 +39,13 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Instalar o navegador
+      - name: Instalar navegador, voz e ffmpeg
         run: |
-          pip install playwright==1.56.0
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install playwright==1.56.0 piper-tts==1.8.0 numpy==2.5.3 onnxruntime==1.29.0 onnx==1.23.2
           python -m playwright install --with-deps chromium
 
-      - name: Gerar os PNG
+      - name: Gerar os PNG dos carrosseis
         run: |
           cat > /tmp/gerar_pngs.py <<'PY'
           import asyncio, hashlib, json, pathlib
@@ -89,12 +96,75 @@ jobs:
           PY
           python /tmp/gerar_pngs.py
 
-      - name: Gravar no repositório
+      - name: Gerar os videos dos Reels
+        run: |
+          cat > /tmp/gerar_reels.py <<'PY'
+          import hashlib, json, pathlib, shutil, subprocess, sys, tempfile, zipfile
+          from importlib.metadata import version
+
+          PACOTE = pathlib.Path('.github/planipax-carrossel.zip')
+
+
+          def sha(p):
+              return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
+
+
+          def main():
+              pendentes = []
+              for r in sorted(pathlib.Path('publicacoes').glob('*/roteiro.json')):
+                  d, s = r.parent, sha(r)
+                  e = d / 'estado.json'
+                  if e.exists() and json.loads(e.read_text()).get('sha256') == s:
+                      continue
+                  pendentes.append((d, r, s))
+              if not pendentes:
+                  print('Nenhum Reel para gerar.')
+                  return
+              if not PACOTE.exists():
+                  sys.exit('Falta .github/planipax-carrossel.zip (o motor dos Reels).')
+              motor = pathlib.Path(tempfile.mkdtemp(prefix='motor_'))
+              zipfile.ZipFile(PACOTE).extractall(motor)
+              reel_py = next(motor.glob('**/scripts/reel/reel.py'))
+              for d, r, s in pendentes:
+                  out = pathlib.Path(tempfile.mkdtemp(prefix='reel_'))
+                  p = subprocess.run([sys.executable, str(reel_py), str(r.resolve()), str(out)],
+                                     capture_output=True, text=True)
+                  print(p.stdout[-3000:], p.stderr[-3000:])
+                  falhas = []
+                  if p.returncode != 0:
+                      falhas.append(f'reel.py saiu com o codigo {p.returncode}')
+                  if (out / 'NAO_ENVIAR.txt').exists():
+                      falhas.append((out / 'NAO_ENVIAR.txt').read_text(encoding='utf-8')[:2000])
+                  ficheiros = []
+                  for nome in ('reel.mp4', 'capa.png', 'folha.png'):
+                      if (out / nome).exists():
+                          shutil.copy(out / nome, d / nome)
+                          ficheiros.append(nome)
+                      else:
+                          falhas.append(f'nao foi gerado: {nome}')
+                  duracao = None
+                  if (d / 'reel.mp4').exists():
+                      q = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                                          '-of', 'csv=p=0', str(d / 'reel.mp4')], capture_output=True, text=True)
+                      duracao = round(float(q.stdout.strip() or 0), 2)
+                  (d / 'estado.json').write_text(json.dumps({
+                      'tipo': 'reel', 'sha256': s, 'ficheiros': ficheiros, 'duracao': duracao,
+                      'falhas': falhas, 'motor_sha256': sha(PACOTE),
+                      'playwright': version('playwright'), 'piper': version('piper-tts')},
+                      ensure_ascii=False, indent=1), encoding='utf-8')
+                  print(d, ficheiros, duracao, 'falhas:', falhas)
+
+
+          main()
+          PY
+          python /tmp/gerar_reels.py
+
+      - name: Gravar no repositorio
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add publicacoes
-          if git diff --cached --quiet; then echo "Sem imagens novas."; exit 0; fi
-          git commit -m "Imagens dos carrosséis geradas"
+          if git diff --cached --quiet; then echo "Nada de novo."; exit 0; fi
+          git commit -m "Imagens e videos gerados"
           git pull --rebase
           git push
