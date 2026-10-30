@@ -1,0 +1,17 @@
+{
+ "tipo": "reel",
+ "sha256": "c63097f59cf1cd9ae29331816647a104c37e8b1f409bf93e5d48614e3fd428af",
+ "ficheiros": [],
+ "duracao": null,
+ "falhas": [
+  "reel.py saiu com o codigo 1",
+  "motivo: ERRO ElevenLabs 402: {\"detail\":{\"type\":\"payment_required\",\"code\":\"paid_plan_required\",\"message\":\"Free users cannot use library voices via the API. Upgrade to Creator or add $5 of credits to use this voice: https://elevenlabs.io/app/subscription/api?utm_source=api_error&utm_content=library_voice\",\"status\":\"payment_requir",
+  "nao foi gerado: reel.mp4",
+  "nao foi gerado: capa.png",
+  "nao foi gerado: folha.png"
+ ],
+ "motor_sha256": "2db50a58d2076bd1e47399442b730d3d2b23d80815df16ff6fa567d96b956427",
+ "voz": "elevenlabs",
+ "playwright": "1.56.0",
+ "piper": "1.8.0"
+}
