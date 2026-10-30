@@ -136,6 +136,8 @@ jobs:
                   falhas = []
                   if p.returncode != 0:
                       falhas.append(f'reel.py saiu com o codigo {p.returncode}')
+                      ultimas = [l for l in (p.stderr + p.stdout).splitlines() if l.strip()][-6:]
+                      falhas.append('motivo: ' + ' | '.join(ultimas)[:1500])
                   if (out / 'NAO_ENVIAR.txt').exists():
                       falhas.append((out / 'NAO_ENVIAR.txt').read_text(encoding='utf-8')[:2000])
                   ficheiros = []
