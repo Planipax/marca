@@ -97,9 +97,12 @@ jobs:
           python /tmp/gerar_pngs.py
 
       - name: Gerar os videos dos Reels
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
         run: |
           cat > /tmp/gerar_reels.py <<'PY'
-          import hashlib, json, pathlib, shutil, subprocess, sys, tempfile, zipfile
+          import hashlib, json, os, pathlib, shutil, subprocess, sys, tempfile, zipfile
           from importlib.metadata import version
 
           PACOTE = pathlib.Path('.github/planipax-carrossel.zip')
@@ -150,6 +153,7 @@ jobs:
                   (d / 'estado.json').write_text(json.dumps({
                       'tipo': 'reel', 'sha256': s, 'ficheiros': ficheiros, 'duracao': duracao,
                       'falhas': falhas, 'motor_sha256': sha(PACOTE),
+                      'voz': 'elevenlabs' if os.environ.get('ELEVENLABS_API_KEY') and os.environ.get('ELEVENLABS_VOICE_ID') else 'piper',
                       'playwright': version('playwright'), 'piper': version('piper-tts')},
                       ensure_ascii=False, indent=1), encoding='utf-8')
                   print(d, ficheiros, duracao, 'falhas:', falhas)
