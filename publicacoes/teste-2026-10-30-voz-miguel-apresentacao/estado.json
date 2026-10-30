@@ -1,0 +1,16 @@
+{
+ "tipo": "reel",
+ "sha256": "10a9fcf4e650e6e3e698c936b07f31afda41aad44759401f1fa48af94f7ba887",
+ "ficheiros": [],
+ "duracao": null,
+ "falhas": [
+  "reel.py saiu com o codigo 1",
+  "nao foi gerado: reel.mp4",
+  "nao foi gerado: capa.png",
+  "nao foi gerado: folha.png"
+ ],
+ "motor_sha256": "2db50a58d2076bd1e47399442b730d3d2b23d80815df16ff6fa567d96b956427",
+ "voz": "elevenlabs",
+ "playwright": "1.56.0",
+ "piper": "1.8.0"
+}
