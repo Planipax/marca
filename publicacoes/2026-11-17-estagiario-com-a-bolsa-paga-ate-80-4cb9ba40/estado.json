@@ -1,0 +1,16 @@
+{
+ "sha256": "4cb9ba409a0798a9fa944644526c23ca1c9590316cdee16a8bd968b949abb648",
+ "slides": 8,
+ "ficheiros": [
+  "slide01.png",
+  "slide02.png",
+  "slide03.png",
+  "slide04.png",
+  "slide05.png",
+  "slide06.png",
+  "slide07.png",
+  "slide08.png"
+ ],
+ "falhas": [],
+ "playwright": "1.56.0"
+}
