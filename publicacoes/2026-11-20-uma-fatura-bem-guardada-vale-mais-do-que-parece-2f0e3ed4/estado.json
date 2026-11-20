@@ -1,0 +1,15 @@
+{
+ "tipo": "reel",
+ "sha256": "2f0e3ed46aa711f28d80f69e44001c0a2ada4e51d388b8ae6a7251a947dadd3a",
+ "ficheiros": [
+  "reel.mp4",
+  "capa.png",
+  "folha.png"
+ ],
+ "duracao": 42.8,
+ "falhas": [],
+ "motor_sha256": "2db50a58d2076bd1e47399442b730d3d2b23d80815df16ff6fa567d96b956427",
+ "voz": "elevenlabs",
+ "playwright": "1.56.0",
+ "piper": "1.8.0"
+}
